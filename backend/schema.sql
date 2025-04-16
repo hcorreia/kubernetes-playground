@@ -1,6 +1,7 @@
 CREATE TABLE `posts` (
   `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `title` varchar(255) NOT NULL,
+  `image` varchar(255) NOT NULL,
   `content` text NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL

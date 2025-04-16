@@ -1,8 +1,11 @@
+import Image from "next/image";
+
 export const dynamic = "force-dynamic";
 
 type PostType = {
   id: number;
   title: string;
+  image: string;
   content: string;
   created_at: string; // ISO Timestamp
   updated_at: string; // ISO Timestamp
@@ -27,6 +30,15 @@ export default async function PostsPage() {
         <div>
           {data.data.map((item) => (
             <div key={item.id} className="my-16">
+              {!!item.image && (
+                <Image
+                  className="max-w-full"
+                  src={item.image}
+                  width={800}
+                  height={600}
+                  alt=""
+                />
+              )}
               <h2 className="text-2xl">
                 {item.id}: {item.title}
               </h2>

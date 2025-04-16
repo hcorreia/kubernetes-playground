@@ -10,7 +10,7 @@ import (
 )
 
 const listPosts = `-- name: ListPosts :many
-SELECT id, title, content, created_at, updated_at FROM posts
+SELECT id, title, image, content, created_at, updated_at FROM posts
 ORDER BY id DESC
 `
 
@@ -26,6 +26,7 @@ func (q *Queries) ListPosts(ctx context.Context) ([]Post, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
+			&i.Image,
 			&i.Content,
 			&i.CreatedAt,
 			&i.UpdatedAt,
