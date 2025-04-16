@@ -1,0 +1,104 @@
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: next-image-deploy
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: next-image
+#   template:
+#     metadata:
+#       labels:
+#         app: next-image
+#     spec:
+#       containers:
+#         - name: next-image
+#           image: h1b/nodejs-app
+#           imagePullPolicy: Never
+#           env:
+#             - name: BACKEND_URL
+#               value: "http://go-app:80"
+#           resources:
+#             limits:
+#               memory: "1Gi"
+#               cpu: "1000m"
+#           ports:
+#             - containerPort: 3000
+#               name: next-image-http
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: next-image
+# spec:
+#   type: NodePort
+#   selector:
+#     app: next-image
+#   ports:
+#     - protocol: TCP
+#       port: 80
+#       targetPort: next-image-http
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: next-image-cache-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: next-image-cache
+  template:
+    metadata:
+      labels:
+        app: next-image-cache
+    spec:
+      containers:
+        - name: next-image-cache
+          image: varnish:alpine
+          env:
+            # - name: VARNISH_BACKEND_HOST
+            #   value: next-image
+            # - name: VARNISH_BACKEND_PORT
+            #   value: "80"
+            - name: VARNISH_BACKEND_HOST
+              value: localhost
+            - name: VARNISH_BACKEND_PORT
+              value: "3000"
+            - name: BACKEND_URL
+              value: "http://go-app:80"
+          resources:
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          ports:
+            - containerPort: 80
+
+        - name: next-image-app
+          image: h1b/nodejs-app
+          imagePullPolicy: Never
+          env:
+            - name: BACKEND_URL
+              value: "http://go-app:80"
+          resources:
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: next-image-cache
+spec:
+  type: NodePort
+  selector:
+    app: next-image-cache
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

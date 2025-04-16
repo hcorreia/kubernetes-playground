@@ -1,0 +1,42 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-app-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-app
+  template:
+    metadata:
+      labels:
+        app: go-app
+    spec:
+      containers:
+        - name: go-app
+          image: h1b/go-app
+          imagePullPolicy: Never
+          env:
+            - name: DB_STRING
+              value: "root:root@tcp(db:3306)/myapp"
+          resources:
+            limits:
+              memory: "200Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8080
+              name: go-app-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-app
+spec:
+  type: ClusterIP
+  selector:
+    app: go-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: go-app-http
