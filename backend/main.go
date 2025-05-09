@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"database/sql"
@@ -14,12 +16,71 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	// _ "github.com/golang-migrate/migrate/v4/source/github"
+
 	"k8s-tests/backend/database"
 )
 
+func mainMigration(direction string) error {
+	// ! I Know...
+	// ! This is NOT right. DB connection should not be here.
+
+	fmt.Println("Running migrations",
+		strings.ToUpper(direction),
+		"...")
+
+	db, err := sql.Open("mysql", fmt.Sprintf("%s?parseTime=true", os.Getenv("DB_STRING")))
+	if err != nil {
+		return err
+	}
+
+	driver, err := mysql.WithInstance(db, &mysql.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://./database/migrations",
+		"mysql", driver)
+	if err != nil {
+		return err
+	}
+
+	if direction == "status" {
+		ver, _, err := m.Version()
+
+		if err == nil {
+			fmt.Println("Version: ", ver)
+		} else {
+			fmt.Println("Version: ", err.Error())
+		}
+
+	} else if direction == "up" {
+		err = m.Up()
+	} else if direction == "down" {
+		// err = m.Down()
+		err = m.Steps(-1)
+	} else {
+		panic("Wrong direction!")
+	}
+
+	if err != nil {
+		fmt.Println("Done:", err.Error())
+		// return err
+	} else {
+		fmt.Println("Done")
+	}
+
+	return nil
+}
+
 func getPosts() ([]database.Post, error) {
 	// ! I Know...
-	// ! This ia NOT right. DB connection should not be here.
+	// ! This is NOT right. DB connection should not be here.
 
 	ctx := context.Background()
 
@@ -50,6 +111,14 @@ type DataResult[T any] struct {
 	Meta DataResultMeta `json:"meta"`
 }
 
+func panicHelpText() {
+	panic(
+		"Wrong command line args.\n" +
+			"E.g.:\n" +
+			"  - backend migrate up\n" +
+			"  - backend migrate down\n")
+}
+
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -59,6 +128,21 @@ func main() {
 	hostname, err := os.Hostname()
 	if err != nil {
 		panic(err)
+	}
+
+	if len(os.Args) > 1 {
+		if len(os.Args) == 3 &&
+			os.Args[1] == "migrate" &&
+			slices.Contains([]string{"up", "down", "status"}, os.Args[2]) {
+
+			err = mainMigration(os.Args[2])
+			if err != nil {
+				panic(err)
+			}
+			return
+		} else {
+			panicHelpText()
+		}
 	}
 
 	fmt.Println("Lets GO...")
@@ -109,5 +193,8 @@ func main() {
 		fmt.Fprintf(w, "Auth from POD: %s", hostname)
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := ":8080"
+
+	fmt.Println("Running on port", port)
+	log.Fatal(http.ListenAndServe(port, nil))
 }
