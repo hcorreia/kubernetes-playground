@@ -25,18 +25,23 @@ import (
 	"k8s-tests/backend/database"
 )
 
-func mainMigration(direction string) error {
-	// ! I Know...
-	// ! This is NOT right. DB connection should not be here.
+func connectDB() *sql.DB {
+	db, err := sql.Open("mysql", fmt.Sprintf("%s?parseTime=true", os.Getenv("DB_STRING")))
+	if err != nil {
+		panic(err)
+	}
+
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(20)
+
+	return db
+}
+
+func mainMigration(db *sql.DB, direction string) error {
 
 	fmt.Println("Running migrations",
 		strings.ToUpper(direction),
 		"...")
-
-	db, err := sql.Open("mysql", fmt.Sprintf("%s?parseTime=true", os.Getenv("DB_STRING")))
-	if err != nil {
-		return err
-	}
 
 	driver, err := mysql.WithInstance(db, &mysql.Config{})
 	if err != nil {
@@ -78,16 +83,8 @@ func mainMigration(direction string) error {
 	return nil
 }
 
-func getPosts() ([]database.Post, error) {
-	// ! I Know...
-	// ! This is NOT right. DB connection should not be here.
-
+func getPosts(db *sql.DB) ([]database.Post, error) {
 	ctx := context.Background()
-
-	db, err := sql.Open("mysql", fmt.Sprintf("%s?parseTime=true", os.Getenv("DB_STRING")))
-	if err != nil {
-		return nil, err
-	}
 
 	queries := database.New(db)
 
@@ -135,7 +132,7 @@ func main() {
 			os.Args[1] == "migrate" &&
 			slices.Contains([]string{"up", "down", "status"}, os.Args[2]) {
 
-			err = mainMigration(os.Args[2])
+			err = mainMigration(connectDB(), os.Args[2])
 			if err != nil {
 				panic(err)
 			}
@@ -145,13 +142,15 @@ func main() {
 		}
 	}
 
+	db := connectDB()
+
 	fmt.Println("Lets GO...")
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello from POD: %s", hostname)
 	})
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		_, err := getPosts()
+		_, err := getPosts(db)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, err.Error())
@@ -162,7 +161,7 @@ func main() {
 	})
 	http.HandleFunc("/api/posts", func(w http.ResponseWriter, r *http.Request) {
 
-		posts, err := getPosts()
+		posts, err := getPosts(db)
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
