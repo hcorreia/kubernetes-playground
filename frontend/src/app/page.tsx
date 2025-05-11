@@ -24,6 +24,8 @@ export default async function PostsPage() {
     await fetch(`${process.env.BACKEND_URL}/api/posts`)
   ).json()) as ApiResult<PostType[] |null>;
 
+//   console.log(data)
+
   return (
     <div className="flex justify-center">
       <main className="max-w-[400px] p-4">
