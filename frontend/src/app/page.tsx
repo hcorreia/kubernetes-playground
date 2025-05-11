@@ -22,13 +22,13 @@ type ApiResult<T> = {
 export default async function PostsPage() {
   const data = (await (
     await fetch(`${process.env.BACKEND_URL}/api/posts`)
-  ).json()) as ApiResult<PostType[]>;
+  ).json()) as ApiResult<PostType[] |null>;
 
   return (
     <div className="flex justify-center">
       <main className="max-w-[400px] p-4">
         <div>
-          {data.data.map((item) => (
+          {(data.data || []).map((item) => (
             <div key={item.id} className="my-16">
               {!!item.image && (
                 <Image
