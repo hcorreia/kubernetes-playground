@@ -57,6 +57,11 @@ spec:
       labels:
         app: next-image-cache
     spec:
+      initContainers:
+        - name: next-image-cache-wait-backend
+          image: busybox:1.28
+          command: ['sh', '-c', "until nslookup go-app.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for DB; sleep 2; done"]
+
       containers:
         - name: next-image-cache
           image: varnish:alpine
@@ -69,8 +74,8 @@ spec:
               value: localhost
             - name: VARNISH_BACKEND_PORT
               value: "3000"
-            - name: BACKEND_URL
-              value: "http://go-app:80"
+            # - name: BACKEND_URL
+            #   value: "http://go-app:80"
           resources:
             limits:
               memory: "1Gi"
@@ -88,6 +93,14 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /_next
+              port: 3000
+          livenessProbe:
+            httpGet:
+              path: /_next
+              port: 3000
 
 ---
 apiVersion: v1

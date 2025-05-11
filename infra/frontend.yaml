@@ -13,6 +13,11 @@ spec:
       labels:
         app: next-app
     spec:
+      initContainers:
+        - name: next-app-wait-backend
+          image: busybox:1.28
+          command: ['sh', '-c', "until nslookup go-app.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for DB; sleep 2; done"]
+
       containers:
         - name: next-app
           image: h1b/nodejs-app
@@ -27,6 +32,14 @@ spec:
           ports:
             - containerPort: 3000
               name: next-app-http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
 ---
 apiVersion: v1
 kind: Service
