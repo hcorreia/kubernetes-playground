@@ -1,0 +1,86 @@
+{{- if .Values.db.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ include "helm-deploy.fullname" . }}-db"
+spec:
+  selector:
+    matchLabels:
+      app: "{{ include "helm-deploy.fullname" . }}-db"
+  template:
+    metadata:
+      labels:
+        app: "{{ include "helm-deploy.fullname" . }}-db"
+    spec:
+      containers:
+        - name: "{{ include "helm-deploy.fullname" . }}-db"
+          image: {{ .Values.db.image }}
+          imagePullPolicy: {{ .Values.db.imagePullPolicy }}
+          resources:
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          ports:
+            - containerPort: 3306
+          {{- with .Values.db.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.db.persistentVolumeClaimName }}
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: "{{ include "helm-deploy.fullname" . }}-db-volume"
+          {{- end }}
+
+        {{- if .Values.db.pmaEnabled }}
+        - name: "{{ include "helm-deploy.fullname" . }}-pma"
+          image: phpmyadmin/phpmyadmin
+          resources:
+            limits:
+              memory: "200Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 80
+          {{- with .Values.db.pmaEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- if .Values.db.persistentVolumeClaimName }}
+      volumes:
+        - name: "{{ include "helm-deploy.fullname" . }}-db-volume"
+          persistentVolumeClaim:
+            claimName: {{ .Values.db.persistentVolumeClaimName }}
+      {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ include "helm-deploy.fullname" . }}-db"
+spec:
+  # type: ClusterIP
+  type: NodePort
+  selector:
+    app: "{{ include "helm-deploy.fullname" . }}-db"
+  ports:
+    - protocol: TCP
+      port: 3306
+
+{{- if .Values.db.pmaEnabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ include "helm-deploy.fullname" . }}-pma"
+spec:
+  # type: ClusterIP
+  type: NodePort
+  selector:
+    app: "{{ include "helm-deploy.fullname" . }}-db"
+  ports:
+    - protocol: TCP
+      port: 80
+{{- end }}
+{{- end }}
